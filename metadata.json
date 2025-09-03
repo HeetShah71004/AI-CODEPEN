@@ -1,0 +1,5 @@
+{
+  "name": "AI CodePen",
+  "description": "A web-based code editor that allows you to write HTML, CSS, and JavaScript and see a live preview. It includes an AI-powered feature to generate code from text prompts using the Gemini API.",
+  "requestFramePermissions": []
+}
