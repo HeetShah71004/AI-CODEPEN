@@ -1,4 +1,3 @@
-
 export const DEFAULT_HTML = `
 <div class="card">
   <div class="card-content">
