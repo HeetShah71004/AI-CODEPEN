@@ -1,0 +1,47 @@
+/* Global styles for the AI CodePen application */
+:root {
+  --primary-color: #06b6d4;
+  --secondary-color: #8b5cf6;
+  --background-dark: #111827;
+  --background-light: #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border-color: #374151;
+}
+
+/* Code editor specific styles */
+.code-editor {
+  font-family: "Fira Code", "Cascadia Code", "SF Mono", Consolas,
+    "Liberation Mono", Menlo, monospace;
+}
+
+/* Line number styles */
+.line-numbers {
+  color: var(--text-secondary);
+  background: var(--background-dark);
+  border-right: 1px solid var(--border-color);
+  min-width: 40px;
+  text-align: right;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Scrollbar styling */
+.code-editor::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.code-editor::-webkit-scrollbar-track {
+  background: var(--background-dark);
+}
+
+.code-editor::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.code-editor::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

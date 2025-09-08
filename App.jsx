@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { generateCode, formatCode } from "./services/geminiService";
 import {
+  downloadCodeAsZip,
+  downloadCodeAsZipWithPathSelection,
+  downloadCodeAsZipToDefault,
+  downloadIndividualFiles,
+} from "./services/downloadService";
+import {
   HtmlIcon,
   CssIcon,
   JsIcon,
@@ -10,86 +16,18 @@ import {
   FormatIcon,
   ChevronUpIcon,
   ChevronDownIcon,
+  DownloadIcon,
 } from "./components/Icons";
 import { DEFAULT_HTML, DEFAULT_CSS, DEFAULT_JS } from "./constants";
-
-const EditorPane = ({
-  label,
-  icon,
-  value,
-  onChange,
-  isCollapsed,
-  onToggle,
-}) => {
-  const lineNumbersRef = useRef(null);
-  const textAreaRef = useRef(null);
-
-  const lineCount = value.split("\n").length;
-  const lines = Array.from({ length: lineCount }, (_, i) => i + 1);
-
-  const handleScroll = () => {
-    if (lineNumbersRef.current && textAreaRef.current) {
-      lineNumbersRef.current.scrollTop = textAreaRef.current.scrollTop;
-    }
-  };
-
-  useEffect(() => {
-    handleScroll();
-  }, [value]);
-
-  return (
-    <div
-      className={`flex flex-col bg-gray-800 overflow-hidden ${
-        isCollapsed ? "flex-grow-0 flex-shrink-0" : "flex-1"
-      }`}
-    >
-      <div
-        className="flex items-center justify-between p-3 bg-gray-900 text-gray-400 border-b border-gray-700 cursor-pointer select-none"
-        onClick={onToggle}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
-        aria-expanded={!isCollapsed}
-        aria-controls={`editor-content-${label}`}
-      >
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="font-medium text-sm">{label}</span>
-        </div>
-        <div className="p-1" aria-hidden="true">
-          {isCollapsed ? <ChevronDownIcon /> : <ChevronUpIcon />}
-        </div>
-      </div>
-      <div
-        id={`editor-content-${label}`}
-        className={`flex flex-1 relative overflow-hidden ${
-          isCollapsed ? "hidden" : ""
-        }`}
-      >
-        <div
-          ref={lineNumbersRef}
-          className="pl-4 pr-2 pt-4 pb-4 bg-gray-800 text-right text-gray-500 font-mono text-sm select-none overflow-y-hidden"
-        >
-          {lines.map((lineNumber) => (
-            <div key={lineNumber}>{lineNumber}</div>
-          ))}
-        </div>
-        <textarea
-          ref={textAreaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={handleScroll}
-          className="w-full h-full p-4 pl-2 bg-gray-800 text-gray-100 font-mono text-sm resize-none focus:outline-none"
-          placeholder={`Write your ${label} code here...`}
-          aria-label={`${label} code editor`}
-          spellCheck="false"
-        />
-      </div>
-    </div>
-  );
-};
+import { useAuth } from "./contexts/AuthContext";
+import { useToast } from "./contexts/ToastContext";
+import Header from "./components/Header";
+import SimpleFoldableEditorPane from "./components/FoldableEditorPane";
 
 const App = () => {
+  const { isAuthenticated } = useAuth();
+  const { showToast } = useToast();
+
   const [htmlCode, setHtmlCode] = useState(DEFAULT_HTML);
   const [cssCode, setCssCode] = useState(DEFAULT_CSS);
   const [jsCode, setJsCode] = useState(DEFAULT_JS);
@@ -187,6 +125,100 @@ const App = () => {
     }
   };
 
+  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+
+  const handleDownload = async () => {
+    try {
+      const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/:/g, "-");
+      const filename = `ai-codepen-export-${timestamp}`;
+      await downloadCodeAsZip(htmlCode, cssCode, jsCode, filename);
+    } catch (error) {
+      alert("Failed to download files: " + error.message);
+    }
+  };
+
+  const handleDownloadWithPathSelection = async () => {
+    try {
+      const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/:/g, "-");
+      const filename = `ai-codepen-export-${timestamp}`;
+      const result = await downloadCodeAsZipWithPathSelection(
+        htmlCode,
+        cssCode,
+        jsCode,
+        filename
+      );
+
+      if (result.success) {
+        if (result.method === "filesystem-api") {
+          showToast(
+            "Files saved successfully to your chosen location! 📁",
+            "success"
+          );
+        } else {
+          showToast(`Files downloaded to ${result.path} 📥`, "success");
+        }
+      } else if (result.cancelled) {
+        // User cancelled, no need to show error
+        console.log("Download cancelled by user");
+      }
+    } catch (error) {
+      showToast("Failed to download files: " + error.message, "error");
+    }
+    setShowDownloadOptions(false);
+  };
+
+  const handleDownloadToDefault = async () => {
+    try {
+      const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/:/g, "-");
+      const filename = `ai-codepen-export-${timestamp}`;
+      const result = await downloadCodeAsZipToDefault(
+        htmlCode,
+        cssCode,
+        jsCode,
+        filename
+      );
+
+      if (result.success) {
+        showToast(`Files downloaded to ${result.path} 📥`, "success");
+      }
+    } catch (error) {
+      showToast("Failed to download files: " + error.message, "error");
+    }
+    setShowDownloadOptions(false);
+  };
+
+  const handleDownloadIndividualFiles = async () => {
+    try {
+      const result = await downloadIndividualFiles(
+        htmlCode,
+        cssCode,
+        jsCode,
+        true
+      );
+
+      if (result.success) {
+        showToast(`All files downloaded successfully! 📄`, "success");
+      } else if (result.cancelled) {
+        console.log("Download cancelled by user");
+      }
+    } catch (error) {
+      showToast(
+        "Failed to download individual files: " + error.message,
+        "error"
+      );
+    }
+    setShowDownloadOptions(false);
+  };
+
   const handleMouseDown = (e) => {
     e.preventDefault();
 
@@ -216,59 +248,54 @@ const App = () => {
     document.addEventListener("mouseup", handleMouseUp);
   };
 
+  // Only render the main app if user is authenticated
+  if (!isAuthenticated) {
+    return null; // AuthPage will be rendered by the main index.jsx
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-200 font-sans">
-      <header className="flex items-center justify-between p-3 bg-gray-800 border-b border-gray-700 shadow-md z-10">
-        <h1 className="text-xl font-bold text-cyan-400">AI CodePen</h1>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleFormatCode}
-            disabled={isFormatting}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 rounded-md hover:bg-gray-500 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 disabled:opacity-50"
-            aria-label="Format code"
-          >
-            {isFormatting ? <SpinnerIcon /> : <FormatIcon />}
-            Format Code
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-md hover:bg-indigo-500 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75"
-            aria-label="Generate code with AI"
-          >
-            <MagicIcon />
-            Generate with AI
-          </button>
-        </div>
-      </header>
+      <Header
+        onFormatCode={handleFormatCode}
+        onGenerateAI={() => setIsModalOpen(true)}
+        onDownload={handleDownload}
+        onDownloadWithPath={handleDownloadWithPathSelection}
+        onDownloadToDefault={handleDownloadToDefault}
+        onDownloadIndividual={handleDownloadIndividualFiles}
+        isFormatting={isFormatting}
+      />
 
       <main ref={mainRef} className="flex flex-col flex-1 overflow-hidden">
         <div
           style={{ height: `${editorHeight}px` }}
           className="flex flex-col md:flex-row gap-px bg-gray-700 overflow-hidden"
         >
-          <EditorPane
+          <SimpleFoldableEditorPane
             label="HTML"
             icon={<HtmlIcon />}
             value={htmlCode}
             onChange={setHtmlCode}
             isCollapsed={collapsedEditors.html}
             onToggle={() => handleToggleEditor("html")}
+            language="html"
           />
-          <EditorPane
+          <SimpleFoldableEditorPane
             label="CSS"
             icon={<CssIcon />}
             value={cssCode}
             onChange={setCssCode}
             isCollapsed={collapsedEditors.css}
             onToggle={() => handleToggleEditor("css")}
+            language="css"
           />
-          <EditorPane
+          <SimpleFoldableEditorPane
             label="JavaScript"
             icon={<JsIcon />}
             value={jsCode}
             onChange={setJsCode}
             isCollapsed={collapsedEditors.js}
             onToggle={() => handleToggleEditor("js")}
+            language="javascript"
           />
         </div>
 
